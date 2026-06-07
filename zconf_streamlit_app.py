@@ -1379,87 +1379,75 @@ def _confluence_row_html(row: pd.Series, direction: str) -> str:
     """
     Render a single confluence stock as a rich HTML card row.
     direction: 'buy' or 'sell'
+    NOTE: No HTML comments inside the return string — Streamlit markdown
+    breaks on HTML comment syntax, rendering raw source instead of styled HTML.
     """
     is_strong_both = "STRONG BOTH" in str(row.get("Confluence_Str", ""))
     border_col = "#059669" if direction == "buy" else "#dc2626"
     bg_col     = "#f0fdf4" if direction == "buy" else "#fff5f5"
     badge_bg   = "#065f46" if direction == "buy" else "#991b1b"
 
-    star = "⭐ " if is_strong_both else ""
-    d_sig  = row.get("D_Signal",    "—")
-    w_sig  = row.get("W_Signal",    "—")
-    d_comp = row.get("D_Composite", "—")
-    w_comp = row.get("W_Composite", "—")
+    star   = "⭐ " if is_strong_both else ""
+    d_sig  = row.get("D_Signal",     "—")
+    w_sig  = row.get("W_Signal",     "—")
+    d_comp = row.get("D_Composite",  "—")
+    w_comp = row.get("W_Composite",  "—")
     comb   = row.get("Combined_Comp","—")
-    close  = row.get("Close", "—")
-    rsi    = row.get("RSI",   "—")
-    gates  = row.get("All_Gates", "")
-    div    = row.get("Divergence", "") or ""
+    close  = row.get("Close",        "—")
+    rsi    = row.get("RSI",          "—")
+    gates  = row.get("All_Gates",    "")
+    div    = row.get("Divergence",   "") or ""
     cape_z = row.get("CAPE_Z")
     cape_s = f"{cape_z:.2f}" if cape_z is not None else "—"
+    conf_s = row.get("Confluence_Str", "")
+    symbol = row.get("Symbol", "")
 
     gates_badge = (
-        '<span style="background:#065f46;color:#6ee7b7;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">ALL ✓</span>'
+        '<span style="background:#065f46;color:#6ee7b7;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">ALL GATES ✓</span>'
         if gates == "YES" else
-        '<span style="background:#78350f;color:#fde68a;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">PARTIAL</span>'
+        '<span style="background:#78350f;color:#fde68a;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">PARTIAL GATES</span>'
     )
     div_badge = (
-        f'<span style="background:#312e81;color:#c7d2fe;border-radius:4px;padding:2px 6px;font-size:10px">📡 {div[:30]}</span>'
+        f'<span style="background:#312e81;color:#c7d2fe;border-radius:4px;padding:2px 6px;font-size:10px">📡 {div[:35]}</span>'
         if div else ""
     )
-    strong_glow = f'box-shadow:0 0 0 2px {border_col}40;' if is_strong_both else ""
+    strong_glow = f"box-shadow:0 0 0 2px {border_col}55;" if is_strong_both else ""
 
-    return f"""
-    <div style="background:{bg_col};border:1px solid #e2e8f0;border-left:5px solid {border_col};
-                border-radius:12px;padding:14px 18px;margin-bottom:8px;{strong_glow}">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
+    return (
+        f'<div style="background:{bg_col};border:1px solid #e2e8f0;border-left:5px solid {border_col};'
+        f'border-radius:12px;padding:14px 18px;margin-bottom:8px;{strong_glow}">'
+        f'<div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">'
 
-        <!-- Symbol badge -->
-        <span style="background:{badge_bg};color:#fff;border-radius:8px;
-                     padding:5px 14px;font-size:14px;font-weight:800;min-width:110px;text-align:center">
-          {star}{row['Symbol']}
-        </span>
+        f'<span style="background:{badge_bg};color:#fff;border-radius:8px;'
+        f'padding:5px 14px;font-size:14px;font-weight:800;min-width:110px;text-align:center">'
+        f'{star}{symbol}</span>'
 
-        <!-- D / W signal pills -->
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <span style="font-size:10px;color:#94a3b8;font-weight:600">DAILY</span>
-          <span style="background:{border_col}22;color:{border_col};border:1px solid {border_col}55;
-                       border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">
-            {d_sig} ({d_comp})
-          </span>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <span style="font-size:10px;color:#94a3b8;font-weight:600">WEEKLY</span>
-          <span style="background:{border_col}22;color:{border_col};border:1px solid {border_col}55;
-                       border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">
-            {w_sig} ({w_comp})
-          </span>
-        </div>
+        f'<div style="display:flex;flex-direction:column;gap:3px">'
+        f'<span style="font-size:10px;color:#94a3b8;font-weight:600">DAILY</span>'
+        f'<span style="background:{border_col}22;color:{border_col};border:1px solid {border_col}55;'
+        f'border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">'
+        f'{d_sig} &nbsp;({d_comp})</span></div>'
 
-        <!-- Confluence strength -->
-        <div style="display:flex;flex-direction:column;gap:3px">
-          <span style="font-size:10px;color:#94a3b8;font-weight:600">CONFLUENCE</span>
-          <span style="font-size:12px;font-weight:700;color:#1e40af">{row.get('Confluence_Str','')}</span>
-        </div>
+        f'<div style="display:flex;flex-direction:column;gap:3px">'
+        f'<span style="font-size:10px;color:#94a3b8;font-weight:600">WEEKLY</span>'
+        f'<span style="background:{border_col}22;color:{border_col};border:1px solid {border_col}55;'
+        f'border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">'
+        f'{w_sig} &nbsp;({w_comp})</span></div>'
 
-        <!-- Stats -->
-        <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-          <span style="font-family:JetBrains Mono,monospace;font-size:11px;color:#374151">
-            ₹{close} &nbsp;·&nbsp; RSI {rsi} &nbsp;·&nbsp; CAPE_Z {cape_s}
-          </span>
-          <span style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;color:#1e40af">
-            ⚡ Combined Z: {comb}
-          </span>
-        </div>
+        f'<div style="display:flex;flex-direction:column;gap:3px">'
+        f'<span style="font-size:10px;color:#94a3b8;font-weight:600">CONFLUENCE</span>'
+        f'<span style="font-size:12px;font-weight:700;color:#1e40af">{conf_s}</span></div>'
 
-        <!-- Badges row -->
-        <div style="width:100%;display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
-          {gates_badge}
-          {div_badge}
-        </div>
-      </div>
-    </div>
-    """
+        f'<div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px">'
+        f'<span style="font-size:11px;color:#374151">&#8377;{close} &nbsp;&#183;&nbsp; RSI {rsi} &nbsp;&#183;&nbsp; CAPE_Z {cape_s}</span>'
+        f'<span style="font-size:12px;font-weight:700;color:#1e40af">&#9889; Combined Z: {comb}</span>'
+        f'</div>'
+
+        f'<div style="width:100%;display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">'
+        f'{gates_badge}{div_badge}</div>'
+
+        f'</div></div>'
+    )
 
 
 def render_confluence_section(
