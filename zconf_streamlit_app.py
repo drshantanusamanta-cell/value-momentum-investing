@@ -1112,73 +1112,118 @@ def backtest_one(sym_raw: str, lookback_weeks: int, profit_pct: float, c: Dict[s
 # PDF GENERATION
 # ══════════════════════════════════════════════════════════════
 
-def generate_scan_pdf(df_buy: pd.DataFrame, df_sell: pd.DataFrame, df_buy_conf: pd.DataFrame, df_sell_conf: pd.DataFrame, df_div: pd.DataFrame, ts_str: str) -> Optional[io.BytesIO]:
-    """Generate scan results PDF."""
+def generate_scan_pdf(
+    df_buy: pd.DataFrame,
+    df_sell: pd.DataFrame,
+    df_buy_conf: pd.DataFrame,
+    df_sell_conf: pd.DataFrame,
+    df_div: pd.DataFrame,
+    ts_str: str,
+) -> Optional[io.BytesIO]:
+    """Generate scan results PDF including confluence section."""
     if not _REPORTLAB:
         return None
-    
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=1*cm,
-                            rightMargin=1*cm, topMargin=1.2*cm, bottomMargin=1.2*cm)
+
+    buf    = io.BytesIO()
+    doc    = SimpleDocTemplate(buf, pagesize=landscape(A4), leftMargin=1*cm,
+                               rightMargin=1*cm, topMargin=1.2*cm, bottomMargin=1.2*cm)
     styles = getSampleStyleSheet()
     h1, h2, normal = styles["Heading1"], styles["Heading2"], styles["Normal"]
     PAGE_W = landscape(A4)[0] - 2*cm
-    
-    def _df_to_rl_table(df: pd.DataFrame, col_widths: Optional[List[float]] = None) -> Table:
-        rows = [list(df.columns)] + [[str(v) if v is not None else "" for v in row] for row in df.itertuples(index=False)]
+
+    # ── helpers ────────────────────────────────────────────────────────────
+    def _tbl(df: pd.DataFrame, col_widths: Optional[List[float]] = None) -> Table:
+        rows_data = [list(df.columns)] + [
+            [str(v) if v is not None else "" for v in row]
+            for row in df.itertuples(index=False)
+        ]
         n_c = len(df.columns)
-        cw = col_widths or [PAGE_W / n_c] * n_c
-        tbl = Table(rows, colWidths=cw, repeatRows=1)
-        style = TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), rl_colors.HexColor("#1a1a2e")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), rl_colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 7),
-            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-            ("GRID", (0, 0), (-1, -1), 0.3, rl_colors.HexColor("#cccccc")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [rl_colors.HexColor("#f0f4ff"), rl_colors.white]),
+        cw  = col_widths or [PAGE_W / n_c] * n_c
+        tbl = Table(rows_data, colWidths=cw, repeatRows=1)
+
+        ts = TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, 0),  rl_colors.HexColor("#1a1a2e")),
+            ("TEXTCOLOR",     (0, 0), (-1, 0),  rl_colors.white),
+            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",      (0, 0), (-1, -1), 7),
+            ("FONTNAME",      (0, 1), (-1, -1), "Helvetica"),
+            ("GRID",          (0, 0), (-1, -1), 0.3, rl_colors.HexColor("#cccccc")),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 3),
+            ("TOPPADDING",    (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [rl_colors.HexColor("#f0f4ff"), rl_colors.white]),
         ])
-        
+
         sig_col = list(df.columns).index("Signal") if "Signal" in df.columns else None
-        for r_idx, row in enumerate(rows[1:], start=1):
+        for r_idx, row in enumerate(rows_data[1:], start=1):
             if sig_col is not None:
                 sig = str(row[sig_col])
-                if "BUY" in sig:
-                    style.add("BACKGROUND", (0, r_idx), (-1, r_idx), rl_colors.HexColor("#d4edda"))
-                elif "SELL" in sig:
-                    style.add("BACKGROUND", (0, r_idx), (-1, r_idx), rl_colors.HexColor("#f8d7da"))
-        
-        tbl.setStyle(style)
+                if "BUY"  in sig: ts.add("BACKGROUND", (0, r_idx), (-1, r_idx), rl_colors.HexColor("#d4edda"))
+                elif "SELL" in sig: ts.add("BACKGROUND", (0, r_idx), (-1, r_idx), rl_colors.HexColor("#f8d7da"))
+
+        # Highlight ⭐ STRONG BOTH rows in confluence tables
+        cs_col = list(df.columns).index("Confluence_Str") if "Confluence_Str" in df.columns else None
+        if cs_col is not None:
+            for r_idx, row in enumerate(rows_data[1:], start=1):
+                if "STRONG BOTH" in str(row[cs_col]):
+                    ts.add("BACKGROUND", (0, r_idx), (-1, r_idx), rl_colors.HexColor("#bbf7d0"))
+
+        tbl.setStyle(ts)
         return tbl
-    
-    signal_cols = ["Symbol", "TF", "Signal", "Strength", "All_Gates", "Composite", "RSI_Z", "MACD_Z", "Close", "Divergence"]
-    
+
+    def section(title: str, df: Optional[pd.DataFrame], cols: List[str], color: str = "#000000") -> List:
+        elems = [Paragraph(f'<font color="{color}">{title}</font>', h2), Spacer(1, 0.2*cm)]
+        if df is None or df.empty:
+            elems += [Paragraph("None.", normal), Spacer(1, 0.4*cm)]
+            return elems
+        avail = [c for c in cols if c in df.columns]
+        cw    = [PAGE_W / len(avail)] * len(avail)
+        elems += [_tbl(df[avail], cw), Spacer(1, 0.5*cm)]
+        return elems
+
+    # ── Column definitions ─────────────────────────────────────────────────
+    sig_cols  = ["Symbol", "TF", "Signal", "Strength", "All_Gates", "Add_Conf",
+                 "Composite", "CAPE_Z", "RSI_Z", "MACD_Z", "RSI", "Close", "Divergence"]
+    conf_cols = ["Symbol", "Confluence_Str", "Combined_Comp",
+                 "D_Signal", "D_Strength", "D_Composite",
+                 "W_Signal", "W_Strength", "W_Composite",
+                 "All_Gates", "CAPE_Z", "RSI_Z", "MACD_Z", "Close", "Divergence"]
+    div_cols  = ["Symbol", "TF", "Signal", "Strength", "Composite", "Close", "Divergence"]
+
+    # ── Build story ────────────────────────────────────────────────────────
     story = [
         Paragraph("SHANTANU'S VALUE MOMENTUM SWING TRADING SCANNER v1.8", h1),
-        Paragraph(f"NSE | {ts_str} | Improved reliability", normal),
+        Paragraph(f"NSE  |  {ts_str}  |  292 stocks  |  Daily + Weekly", normal),
         Spacer(1, 0.6*cm),
     ]
-    
+
+    # 1 ── Dual-TF Confluence (Page 1 — highest priority)
+    story.append(Paragraph("⚡ DUAL-TF CONFLUENCE — Highest-Conviction Setups", h2))
+    story.append(Spacer(1, 0.2*cm))
+    story.append(Paragraph(
+        "Stocks where BOTH Daily and Weekly produce a BUY or SELL signal simultaneously. "
+        "⭐ STRONG BOTH = highest-priority entries (green rows).",
+        normal,
+    ))
+    story.append(Spacer(1, 0.3*cm))
+
+    story += section(f"BUY Confluence  ({len(df_buy_conf)} stocks)", df_buy_conf, conf_cols, "#065f46")
+    story += section(f"SELL Confluence ({len(df_sell_conf)} stocks)", df_sell_conf, conf_cols, "#991b1b")
+    story.append(PageBreak())
+
+    # 2 ── All BUY / SELL by timeframe
     for tf in ["Daily", "Weekly"]:
-        sb = df_buy[df_buy["TF"] == tf] if df_buy is not None and not df_buy.empty else pd.DataFrame()
-        ss = df_sell[df_sell["TF"] == tf] if df_sell is not None and not df_sell.empty else pd.DataFrame()
-        
-        if not sb.empty:
-            avail = [c for c in signal_cols if c in sb.columns]
-            story += [
-                Paragraph(f"BUY — {tf} ({len(sb)} stocks)", h2),
-                _df_to_rl_table(sb[avail]),
-                Spacer(1, 0.5*cm),
-            ]
-        
-        if not ss.empty:
-            avail = [c for c in signal_cols if c in ss.columns]
-            story += [
-                Paragraph(f"SELL — {tf} ({len(ss)} stocks)", h2),
-                _df_to_rl_table(ss[avail]),
-                Spacer(1, 0.5*cm),
-            ]
-    
+        sb = df_buy[df_buy["TF"] == tf]  if not df_buy.empty  else pd.DataFrame()
+        ss = df_sell[df_sell["TF"] == tf] if not df_sell.empty else pd.DataFrame()
+        story += section(f"BUY  — {tf}  ({len(sb)} stocks)",  sb,  sig_cols, "#065f46")
+        story += section(f"SELL — {tf}  ({len(ss)} stocks)",  ss,  sig_cols, "#991b1b")
+
+    story.append(PageBreak())
+
+    # 3 ── Divergence
+    story += section(f"📡 Divergence Signals ({len(df_div)} entries)", df_div, div_cols, "#5b21b6")
+
     doc.build(story)
     buf.seek(0)
     return buf
@@ -1261,6 +1306,270 @@ def metric_card(label: str, value: str, color_class: str = "metric-blue") -> str
         <div class="metric-value {color_class}">{value}</div>
     </div>
     """
+
+
+def _build_confluence_df(
+    syms: List[str],
+    df_buy_or_sell: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Build a dual-timeframe confluence DataFrame.
+
+    For each symbol that appears in BOTH Daily and Weekly signal sets,
+    produce one merged row with columns from both timeframes plus a
+    combined composite score for ranking.
+    """
+    rows: List[Dict[str, Any]] = []
+
+    for sym in syms:
+        d = df_buy_or_sell[(df_buy_or_sell["Symbol"] == sym) & (df_buy_or_sell["TF"] == "Daily")]
+        w = df_buy_or_sell[(df_buy_or_sell["Symbol"] == sym) & (df_buy_or_sell["TF"] == "Weekly")]
+
+        if d.empty or w.empty:
+            continue
+
+        d, w = d.iloc[0], w.iloc[0]
+
+        # Combined composite: average of daily + weekly composites
+        d_comp = float(d["Composite"]) if d["Composite"] is not None else 0.0
+        w_comp = float(w["Composite"]) if w["Composite"] is not None else 0.0
+        combined = round((d_comp + w_comp) / 2.0, 3)
+
+        # Badge: STRONG only if BOTH are STRONG; MODERATE if at least one is
+        d_str = d.get("Strength", "")
+        w_str = w.get("Strength", "")
+        if d_str == "STRONG" and w_str == "STRONG":
+            combined_strength = "⭐ STRONG BOTH"
+        elif "STRONG" in (d_str, w_str):
+            combined_strength = "STRONG / MODERATE"
+        elif d_str == "MODERATE" and w_str == "MODERATE":
+            combined_strength = "MODERATE BOTH"
+        else:
+            combined_strength = f"{d_str} / {w_str}".strip(" /")
+
+        rows.append({
+            "Symbol":          sym,
+            "Combined_Comp":   combined,
+            "D_Signal":        d["Signal"],
+            "D_Strength":      d_str,
+            "D_Composite":     round(d_comp, 3),
+            "W_Signal":        w["Signal"],
+            "W_Strength":      w_str,
+            "W_Composite":     round(w_comp, 3),
+            "Confluence_Str":  combined_strength,
+            "All_Gates":       d.get("All_Gates", ""),
+            "CAPE_Z":          d.get("CAPE_Z"),
+            "RSI_Z":           d.get("RSI_Z"),
+            "MACD_Z":          d.get("MACD_Z"),
+            "RSI":             d.get("RSI"),
+            "Close":           d.get("Close"),
+            "Divergence":      (d.get("Divergence", "") or "") + (" | " + w.get("Divergence", "") if w.get("Divergence") else ""),
+        })
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    # Sort: higher combined composite first for BUY; lower first for SELL
+    ascending = df["Combined_Comp"].iloc[0] < 0 if len(df) > 0 else False
+    return df.sort_values("Combined_Comp", ascending=ascending).reset_index(drop=True)
+
+
+def _confluence_row_html(row: pd.Series, direction: str) -> str:
+    """
+    Render a single confluence stock as a rich HTML card row.
+    direction: 'buy' or 'sell'
+    """
+    is_strong_both = "STRONG BOTH" in str(row.get("Confluence_Str", ""))
+    border_col = "#059669" if direction == "buy" else "#dc2626"
+    bg_col     = "#f0fdf4" if direction == "buy" else "#fff5f5"
+    badge_bg   = "#065f46" if direction == "buy" else "#991b1b"
+
+    star = "⭐ " if is_strong_both else ""
+    d_sig  = row.get("D_Signal",    "—")
+    w_sig  = row.get("W_Signal",    "—")
+    d_comp = row.get("D_Composite", "—")
+    w_comp = row.get("W_Composite", "—")
+    comb   = row.get("Combined_Comp","—")
+    close  = row.get("Close", "—")
+    rsi    = row.get("RSI",   "—")
+    gates  = row.get("All_Gates", "")
+    div    = row.get("Divergence", "") or ""
+    cape_z = row.get("CAPE_Z")
+    cape_s = f"{cape_z:.2f}" if cape_z is not None else "—"
+
+    gates_badge = (
+        '<span style="background:#065f46;color:#6ee7b7;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">ALL ✓</span>'
+        if gates == "YES" else
+        '<span style="background:#78350f;color:#fde68a;border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">PARTIAL</span>'
+    )
+    div_badge = (
+        f'<span style="background:#312e81;color:#c7d2fe;border-radius:4px;padding:2px 6px;font-size:10px">📡 {div[:30]}</span>'
+        if div else ""
+    )
+    strong_glow = f'box-shadow:0 0 0 2px {border_col}40;' if is_strong_both else ""
+
+    return f"""
+    <div style="background:{bg_col};border:1px solid #e2e8f0;border-left:5px solid {border_col};
+                border-radius:12px;padding:14px 18px;margin-bottom:8px;{strong_glow}">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
+
+        <!-- Symbol badge -->
+        <span style="background:{badge_bg};color:#fff;border-radius:8px;
+                     padding:5px 14px;font-size:14px;font-weight:800;min-width:110px;text-align:center">
+          {star}{row['Symbol']}
+        </span>
+
+        <!-- D / W signal pills -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:10px;color:#94a3b8;font-weight:600">DAILY</span>
+          <span style="background:{border_col}22;color:{border_col};border:1px solid {border_col}55;
+                       border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">
+            {d_sig} ({d_comp})
+          </span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:10px;color:#94a3b8;font-weight:600">WEEKLY</span>
+          <span style="background:{border_col}22;color:{border_col};border:1px solid {border_col}55;
+                       border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700">
+            {w_sig} ({w_comp})
+          </span>
+        </div>
+
+        <!-- Confluence strength -->
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span style="font-size:10px;color:#94a3b8;font-weight:600">CONFLUENCE</span>
+          <span style="font-size:12px;font-weight:700;color:#1e40af">{row.get('Confluence_Str','')}</span>
+        </div>
+
+        <!-- Stats -->
+        <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+          <span style="font-family:JetBrains Mono,monospace;font-size:11px;color:#374151">
+            ₹{close} &nbsp;·&nbsp; RSI {rsi} &nbsp;·&nbsp; CAPE_Z {cape_s}
+          </span>
+          <span style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:700;color:#1e40af">
+            ⚡ Combined Z: {comb}
+          </span>
+        </div>
+
+        <!-- Badges row -->
+        <div style="width:100%;display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+          {gates_badge}
+          {div_badge}
+        </div>
+      </div>
+    </div>
+    """
+
+
+def render_confluence_section(
+    df_buy_conf: pd.DataFrame,
+    df_sell_conf: pd.DataFrame,
+) -> None:
+    """
+    Render the full Dual-TF Confluence section in the scan report.
+    Includes header, summary, card view and dataframe table for both
+    BUY confluence and SELL confluence.
+    """
+    n_buy  = len(df_buy_conf)
+    n_sell = len(df_sell_conf)
+
+    # ── Section header ────────────────────────────────────────────
+    st.markdown(f"""
+    <div style="background:linear-gradient(135deg,#1e3a8a,#312e81);
+                border-radius:14px;padding:22px 28px;margin:28px 0 20px 0;
+                display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.6);letter-spacing:3px;
+                    text-transform:uppercase;margin-bottom:6px">High-Conviction Setups</div>
+        <div style="font-size:22px;font-weight:800;color:#fff">⚡ Dual-TF Confluence</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px">
+          Daily &amp; Weekly signals agree — highest-probability setups
+        </div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:12px 20px;text-align:center">
+          <div style="font-size:28px;font-weight:800;color:#6ee7b7">{n_buy}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:1px">BUY</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:12px 20px;text-align:center">
+          <div style="font-size:28px;font-weight:800;color:#fca5a5">{n_sell}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:1px">SELL</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── What is confluence? ────────────────────────────────────────
+    st.markdown("""
+    <div style="background:#eff6ff;border-left:4px solid #2563eb;border-radius:8px;
+                padding:12px 18px;margin-bottom:20px;font-size:12px;color:#1e40af;line-height:1.9">
+      <b>📐 Confluence logic:</b>
+      A stock qualifies when it independently generates a BUY (or SELL) signal on
+      <b>both</b> the Daily AND Weekly timeframe.
+      ⭐ <b>Strong Both</b> = STRONG signal on both TFs — highest-conviction entry.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── BUY CONFLUENCE ────────────────────────────────────────────
+    st.markdown("""
+    <div style="font-size:16px;font-weight:800;color:#065f46;
+                padding:14px 0 10px 0;border-bottom:2px solid #d1fae5;margin-bottom:14px">
+      🟢 BUY Confluence Stocks
+    </div>
+    """, unsafe_allow_html=True)
+
+    if df_buy_conf.empty:
+        st.info("No BUY confluence stocks at current filter settings.")
+    else:
+        # Card view
+        with st.expander("📋 Card View (BUY)", expanded=True):
+            for _, row in df_buy_conf.iterrows():
+                st.markdown(_confluence_row_html(row, "buy"), unsafe_allow_html=True)
+
+        # Table view
+        with st.expander("🗂 Table View (BUY)"):
+            table_cols = ["Symbol", "Confluence_Str", "Combined_Comp",
+                          "D_Signal", "D_Strength", "D_Composite",
+                          "W_Signal", "W_Strength", "W_Composite",
+                          "All_Gates", "CAPE_Z", "RSI_Z", "MACD_Z",
+                          "RSI", "Close", "Divergence"]
+            avail = [c for c in table_cols if c in df_buy_conf.columns]
+            st.dataframe(
+                df_buy_conf[avail].reset_index(drop=True),
+                use_container_width=True,
+                height=min(500, 45 + 38 * len(df_buy_conf)),
+            )
+
+    st.markdown("<hr style='border:none;border-top:1px solid #e2e8f0;margin:20px 0'>", unsafe_allow_html=True)
+
+    # ── SELL CONFLUENCE ───────────────────────────────────────────
+    st.markdown("""
+    <div style="font-size:16px;font-weight:800;color:#991b1b;
+                padding:14px 0 10px 0;border-bottom:2px solid #fee2e2;margin-bottom:14px">
+      🔴 SELL Confluence Stocks
+    </div>
+    """, unsafe_allow_html=True)
+
+    if df_sell_conf.empty:
+        st.info("No SELL confluence stocks at current filter settings.")
+    else:
+        with st.expander("📋 Card View (SELL)", expanded=True):
+            for _, row in df_sell_conf.iterrows():
+                st.markdown(_confluence_row_html(row, "sell"), unsafe_allow_html=True)
+
+        with st.expander("🗂 Table View (SELL)"):
+            table_cols = ["Symbol", "Confluence_Str", "Combined_Comp",
+                          "D_Signal", "D_Strength", "D_Composite",
+                          "W_Signal", "W_Strength", "W_Composite",
+                          "All_Gates", "CAPE_Z", "RSI_Z", "MACD_Z",
+                          "RSI", "Close", "Divergence"]
+            avail = [c for c in table_cols if c in df_sell_conf.columns]
+            st.dataframe(
+                df_sell_conf[avail].reset_index(drop=True),
+                use_container_width=True,
+                height=min(500, 45 + 38 * len(df_sell_conf)),
+            )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1398,57 +1707,133 @@ def main():
             else:
                 df_all = pd.DataFrame(all_rows)
                 df_signal = df_all[df_all["Composite"].abs() >= cfg["min_composite"]].copy()
-                df_buy = df_signal[df_signal["Signal"].isin(["BUY", "STRONG BUY"])].copy()
+                df_buy  = df_signal[df_signal["Signal"].isin(["BUY", "STRONG BUY"])].copy()
                 df_sell = df_signal[df_signal["Signal"].isin(["SELL", "STRONG SELL"])].copy()
-                df_div = df_all[df_all["Divergence"] != ""].copy()
-                
-                # Metrics
-                c1, c2, c3, c4, c5 = st.columns(5)
-                c1.markdown(metric_card("BUY", len(df_buy), "metric-green"), unsafe_allow_html=True)
-                c2.markdown(metric_card("SELL", len(df_sell), "metric-red"), unsafe_allow_html=True)
-                c3.markdown(metric_card("Confluence", len(df_buy), "metric-blue"), unsafe_allow_html=True)
-                c4.markdown(metric_card("Signals", len(df_signal), "metric-blue"), unsafe_allow_html=True)
-                c5.markdown(metric_card("Divergences", len(df_div), "metric-blue"), unsafe_allow_html=True)
-                
-                st.markdown(f'<div class="info-box">✓ Scan completed: {ts_str}</div>', unsafe_allow_html=True)
-                
-                # BUY table
-                st.markdown('<div class="section-header" style="color:#065f46">🟢 BUY Signals</div>', unsafe_allow_html=True)
-                display_cols = ["Symbol", "TF", "Signal", "Strength", "Composite", "RSI_Z", "MACD_Z", "Close"]
-                if not df_buy.empty:
-                    avail = [c for c in display_cols if c in df_buy.columns]
-                    st.dataframe(df_buy[avail].reset_index(drop=True), use_container_width=True)
-                else:
-                    st.info("No BUY signals.")
-                
-                # SELL table
-                st.markdown('<div class="section-header" style="color:#991b1b">🔴 SELL Signals</div>', unsafe_allow_html=True)
-                if not df_sell.empty:
-                    avail = [c for c in display_cols if c in df_sell.columns]
-                    st.dataframe(df_sell[avail].reset_index(drop=True), use_container_width=True)
-                else:
-                    st.info("No SELL signals.")
-                
-                # Download
+                df_div  = df_all[df_all["Divergence"] != ""].copy()
+
+                # ── Build confluence sets ──────────────────────────────
+                d_buy_syms  = set(df_buy[df_buy["TF"] == "Daily"]["Symbol"])
+                w_buy_syms  = set(df_buy[df_buy["TF"] == "Weekly"]["Symbol"])
+                d_sell_syms = set(df_sell[df_sell["TF"] == "Daily"]["Symbol"])
+                w_sell_syms = set(df_sell[df_sell["TF"] == "Weekly"]["Symbol"])
+
+                buy_conf_syms  = sorted(d_buy_syms  & w_buy_syms)
+                sell_conf_syms = sorted(d_sell_syms & w_sell_syms)
+
+                df_buy_conf  = _build_confluence_df(buy_conf_syms,  df_buy)
+                df_sell_conf = _build_confluence_df(sell_conf_syms, df_sell)
+
+                # ── Metric cards ───────────────────────────────────────
+                c1, c2, c3, c4, c5, c6 = st.columns(6)
+                c1.markdown(metric_card("BUY Signals",     str(len(df_buy)),                        "metric-green"),  unsafe_allow_html=True)
+                c2.markdown(metric_card("SELL Signals",    str(len(df_sell)),                       "metric-red"),    unsafe_allow_html=True)
+                c3.markdown(metric_card("⚡ BUY Conf",    str(len(df_buy_conf)),                   "metric-blue"),   unsafe_allow_html=True)
+                c4.markdown(metric_card("⚡ SELL Conf",   str(len(df_sell_conf)),                  "metric-yellow"), unsafe_allow_html=True)
+                c5.markdown(metric_card("Divergences",     str(len(df_div)),                        "metric-blue"),   unsafe_allow_html=True)
+                c6.markdown(metric_card("Total Signals",   str(len(df_signal)),                     "metric-blue"),   unsafe_allow_html=True)
+
+                st.markdown(f'<div class="info-box">✓ Scan completed: <b>{ts_str}</b> &nbsp;·&nbsp; Universe: <b>{len(ALL_SYMBOLS)} stocks</b></div>', unsafe_allow_html=True)
+
+                # ── Display columns ────────────────────────────────────
+                display_cols = ["Symbol", "TF", "Signal", "Strength", "All_Gates",
+                                "Add_Conf", "ΔZ_Accel", "Candle_OK", "Hi52_OK",
+                                "Composite", "CAPE_Z", "RSI_Z", "MACD_Z",
+                                "RSI", "Close", "Divergence"]
+
+                # ══════════════════════════════════════════════════════
+                # ⚡ DUAL-TF CONFLUENCE SECTION (top of report)
+                # ══════════════════════════════════════════════════════
+                render_confluence_section(df_buy_conf, df_sell_conf)
+
+                st.markdown("<hr style='border:none;border-top:2px solid #e2e8f0;margin:28px 0'>", unsafe_allow_html=True)
+
+                # ── BUY Signals table ──────────────────────────────────
+                st.markdown('<div class="section-header" style="color:#065f46;font-size:17px;font-weight:800;padding:14px 0 10px 0;border-bottom:2px solid #d1fae5;margin-bottom:12px">🟢 All BUY Signals — Daily &amp; Weekly</div>', unsafe_allow_html=True)
+                b1, b2 = st.tabs(["Daily BUY", "Weekly BUY"])
+                for tf, tab_ref in [("Daily", b1), ("Weekly", b2)]:
+                    sub = df_buy[df_buy["TF"] == tf]
+                    with tab_ref:
+                        if sub.empty:
+                            st.info(f"No {tf} BUY signals.")
+                        else:
+                            avail = [c for c in display_cols if c in sub.columns]
+                            # Highlight confluence stocks in bold
+                            conf_syms = buy_conf_syms
+                            sub_display = sub[avail].reset_index(drop=True).copy()
+                            # Add confluence marker
+                            sub_display.insert(0, "⚡Conf", sub["Symbol"].map(lambda s: "⚡ YES" if s in conf_syms else "").values)
+                            st.dataframe(sub_display, use_container_width=True, height=min(500, 45 + 38 * len(sub_display)))
+
+                st.markdown("<hr style='border:none;border-top:1px solid #e2e8f0;margin:20px 0'>", unsafe_allow_html=True)
+
+                # ── SELL Signals table ─────────────────────────────────
+                st.markdown('<div class="section-header" style="color:#991b1b;font-size:17px;font-weight:800;padding:14px 0 10px 0;border-bottom:2px solid #fee2e2;margin-bottom:12px">🔴 All SELL Signals — Daily &amp; Weekly</div>', unsafe_allow_html=True)
+                s1, s2 = st.tabs(["Daily SELL", "Weekly SELL"])
+                for tf, tab_ref in [("Daily", s1), ("Weekly", s2)]:
+                    sub = df_sell[df_sell["TF"] == tf]
+                    with tab_ref:
+                        if sub.empty:
+                            st.info(f"No {tf} SELL signals.")
+                        else:
+                            avail = [c for c in display_cols if c in sub.columns]
+                            sub_display = sub[avail].reset_index(drop=True).copy()
+                            conf_syms = sell_conf_syms
+                            sub_display.insert(0, "⚡Conf", sub["Symbol"].map(lambda s: "⚡ YES" if s in conf_syms else "").values)
+                            st.dataframe(sub_display, use_container_width=True, height=min(500, 45 + 38 * len(sub_display)))
+
+                st.markdown("<hr style='border:none;border-top:1px solid #e2e8f0;margin:20px 0'>", unsafe_allow_html=True)
+
+                # ── Divergence signals ─────────────────────────────────
+                if not df_div.empty:
+                    st.markdown('<div style="font-size:16px;font-weight:800;color:#5b21b6;padding:14px 0 10px 0;border-bottom:2px solid #ede9fe;margin-bottom:12px">📡 Divergence Signals</div>', unsafe_allow_html=True)
+                    div_cols = ["Symbol", "TF", "Signal", "Strength", "Composite", "Close", "Divergence"]
+                    avail = [c for c in div_cols if c in df_div.columns]
+                    st.dataframe(df_div[avail].sort_values(["TF", "Symbol"]).reset_index(drop=True), use_container_width=True)
+
+                # ── Downloads ──────────────────────────────────────────
                 st.markdown("---")
                 st.markdown("### 📥 Export Results")
-                csv_data = df_all.to_csv(index=False)
-                st.download_button(
-                    "⬇️ Download CSV (All)",
-                    csv_data,
-                    file_name=f"VMS_Scan_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime="text/csv"
-                )
-                
-                if _REPORTLAB:
-                    pdf_buf = generate_scan_pdf(df_buy, df_sell, pd.DataFrame(), pd.DataFrame(), df_div, ts_str)
-                    if pdf_buf:
+                dl1, dl2, dl3, dl4 = st.columns(4)
+
+                with dl1:
+                    st.download_button(
+                        "⬇️ All Signals CSV",
+                        df_all.to_csv(index=False),
+                        file_name=f"VMS_AllSignals_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                        mime="text/csv",
+                    )
+                with dl2:
+                    if not df_buy_conf.empty:
                         st.download_button(
-                            "⬇️ Download PDF Report",
-                            pdf_buf,
-                            file_name=f"VMS_Scan_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-                            mime="application/pdf"
+                            "⬇️ BUY Confluence CSV",
+                            df_buy_conf.to_csv(index=False),
+                            file_name=f"VMS_BUYConf_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                            mime="text/csv",
                         )
+                with dl3:
+                    if not df_sell_conf.empty:
+                        st.download_button(
+                            "⬇️ SELL Confluence CSV",
+                            df_sell_conf.to_csv(index=False),
+                            file_name=f"VMS_SELLConf_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                            mime="text/csv",
+                        )
+                with dl4:
+                    if _REPORTLAB:
+                        pdf_buf = generate_scan_pdf(df_buy, df_sell, df_buy_conf, df_sell_conf, df_div, ts_str)
+                        if pdf_buf:
+                            st.download_button(
+                                "⬇️ Full PDF Report",
+                                pdf_buf,
+                                file_name=f"VMS_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                                mime="application/pdf",
+                            )
+                    else:
+                        st.caption("PDF unavailable — pip install reportlab")
+
+                if errors:
+                    with st.expander(f"⚠️ {len(errors)} stocks skipped (no data / errors)"):
+                        st.dataframe(pd.DataFrame(errors, columns=["Symbol", "Error"]), use_container_width=True)
     
     # ── TAB 2: BACKTEST ───────────────────────────────────────
     with tab_bt:
