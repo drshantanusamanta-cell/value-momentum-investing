@@ -110,36 +110,141 @@ DEFAULT_CFG: Dict[str, Any] = {
     "backtest_profit_pct": 8.0,
 }
 
-# Stock universe
+# ── Stock universe — merged from all watchlists (290 symbols) ──────────────────
+# Sources: My_MPTDS_26 · 24MPTDS · MPTDS_MDSPORT_24_dr_ram
+#          My_MDSPORT_26 · TV_CYCLICALS · TV_CYCLICALS-2 · TV_DEFENSIVES
+
+# My MPTDS 26 watchlist
 _MPTDS_26 = [
     "NESTLEIND", "IEX", "IRCTC", "ABBOTINDIA", "TRITURBINE", "BEL", "INFY", "ITC",
     "GRSE", "CUMMINSIND", "ASTRAZEN", "NBCC", "APARINDS", "CRISIL", "AJANTPHARM",
-    "PERSISTENT", "HEROMOTOCO", "PIDILITIND", "EICHERMOT", "POLYCAB",
-    "VOLTAMP", "LTTS", "SCHAEFFLER", "TORNTPHARM", "CHAMBLFERT", "UNITDSPR",
+    "PERSISTENT", "HEROMOTOCO", "HEXT", "PIDILITIND", "EICHERMOT", "POLYCAB",
+    "VOLTAMP", "LTTS", "SCHAEFFLER", "LTIM", "TORNTPHARM", "CHAMBLFERT", "UNITDSPR",
+    "GODFRYPHLP", "BLUESTARCO", "GABRIEL", "JBCHEPHARM", "ASIANPAINT", "HAVELLS",
+    "BERGEPAINT", "ZYDUSLIFE", "AVANTIFEED", "ICICIGI", "COROMANDEL", "MGL",
+    "MPHASIS", "APLAPOLLO", "ZENSARTECH", "BSOFT", "TIMKEN", "GRINDWELL", "ALKEM",
+    "COFORGE", "TITAN", "SUNDRMFAST", "GODREJAGRO", "BPCL", "FSL", "TVSMOTOR",
+    "ASHOKLEY", "THANGAMAYL", "AEGISLOG", "CCL", "HATSUN", "APLLTD", "POWERGRID",
+    "BAJFINANCE", "RECLTD", "PFC",
 ]
 
-_MPTDS_25 = [
-    "ABB", "ABBOTINDIA", "ACE", "ADANIENT", "ADANIPORTS", "ABCAPITAL", "AJANTPHARM",
-    "AKZOINDIA", "ALKEM", "ANANDRATHI", "ANANTRAJ", "ANGELONE", "APARINDS", "APLAPOLLO",
-    "APOLLOHOSP", "ASHOKLEY", "ASTRAL", "ASTRAZEN", "AUBANK", "BAJFINANCE", "BAJAJFINSV",
-]
-
+# My MDSPORT 26 watchlist
 _MDSPORT_26 = [
-    "SANOFICONR", "ICICIAMC", "TCS", "INGERRAND", "ANANDRATHI", "CAMS",
-    "IEX", "IRCTC", "COALINDIA", "BSE", "ABBOTINDIA", "CDSL", "TRITURBINE",
+    "SANOFICONR", "ICICIAMC", "ENRIN", "TCS", "INGERRAND", "ANANDRATHI", "CAMS",
+    "IGIL", "IEX", "IRCTC", "CMPDI", "COALINDIA", "BSE", "ABBOTINDIA", "PRUDENT",
+    "NATIONALUM", "CDSL", "TRITURBINE", "NAM-INDIA", "OFSS", "TRAVELFOOD", "INFY",
+    "ZENTEC", "ITC", "CUMMINSIND", "TATAELXSI", "INDIAMART", "BLS", "NATCOPHARM",
+    "KFINTECH", "EMAMILTD", "AJANTPHARM", "HCLTECH", "AIIL", "PERSISTENT",
+    "TDPOWERSYS", "HEROMOTOCO", "ABB", "PIDILITIND", "NMDC", "LALPATHLAB", "ANTHEM",
+    "CONCORDBIO", "LTTS", "ECLERX", "SCHAEFFLER", "LTIM", "HBLENGINE", "FINEORG",
+    "MANYAVAR", "CAPLIPOINT", "TATATECH", "JBCHEPHARM", "SHRIPISTON", "SUMICHEM",
+    "ALIVUS", "INDGN", "AVANTIFEED", "EIHOTEL", "GPIL", "PIIND", "CIPLA", "HSCL",
+    "ELGIEQUIP", "PFIZER", "RATNAMANI", "VESUVIUS", "ZENSARTECH", "DATAPATTNS",
+    "TIMKEN", "VIJAYA", "GRINDWELL", "VINATIORGA", "DIVISLAB", "SUNTV", "ALKEM",
+    "SUNPHARMA", "ZFCVINDIA", "POLYMED", "ACUTAAS", "KPRMILL", "MEDANTA", "GALLANTT",
+    "HAPPYFORGE", "AIAENG", "USHAMART", "SONACOMS", "TEGA", "OBEROIRLTY", "FINCABLES",
+    "INDHOTEL", "NAVA", "CUPID", "AFFLE", "GESHIP", "BLACKBUCK",
 ]
 
+# 24 MPTDS / Dr Ram combined list
 _MPTDS_24 = [
-    "360ONE", "ABB", "ABBOTINDIA", "ACE", "AEGISLOG", "AFFLE", "AIAENG",
-    "AJANTPHARM", "AKZOINDIA", "ALKEM", "APARINDS", "APLAPOLLO",
+    "360ONE", "ABB", "ABBOTINDIA", "ACE", "AEGISLOG", "AFFLE", "AIAENG", "AJANTPHARM",
+    "AKZOINDIA", "ALKEM", "ALKYLAMINE", "APARINDS", "APLAPOLLO", "APOLLOHOSP",
+    "APOLLOTYRE", "ARE&M", "ASAHIINDIA", "ASIANPAINT", "ASTRAL", "ASTRAZEN",
+    "AUROPHARMA", "BAJAJ-AUTO", "BAJAJFINSV", "BAJFINANCE", "BASF", "BATAINDIA",
+    "BAYERCROP", "BEL", "BERGEPAINT", "BHARATFORG", "BHARTIARTL", "BLS", "BLUESTARCO",
+    "BRIGADE", "BRITANNIA", "BSOFT", "CAMS", "CANFINHOME", "CAPLIPOINT", "CARBORUNIV",
+    "CDSL", "CERA", "CESC", "CGCL", "CHAMBLFERT", "CHOLAFIN", "CIPLA", "CLEAN",
+    "COALINDIA", "COCHINSHIP", "COFORGE", "COLPAL", "CONCOR", "CRISIL", "CUMMINSIND",
+    "CYIENT", "DABUR", "DATAPATTNS", "DCMSHRIRAM", "DEEPAKNTR", "DIXON", "DMART",
+    "DRREDDY", "EICHERMOT", "EIDPARRY", "ELECON", "ELECTCAST", "ELGIEQUIP",
+    "ENDURANCE", "ESCORTS", "EXIDEIND", "FEDERALBNK", "FINCABLES", "FSL", "GODFRYPHLP",
+    "GODREJIND", "GPPL", "GRANULES", "GRASIM", "GRINDWELL", "GSPL", "GUJGASLTD",
+    "HAPPSTMNDS", "HAVELLS", "HBLPOWER", "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE",
+    "HEROMOTOCO", "HINDUNILVR", "HSCL", "HUDCO", "ICICIBANK", "INDHOTEL", "INFY",
+    "IRCTC", "ITC", "JBCHEPHARM", "JBMA", "JINDALSAW", "JKCEMENT", "JKTYRE",
+    "KAJARIACER", "KARURVYSYA", "KEI", "KIRLOSBROS", "KIRLOSENG", "KOTAKBANK",
+    "KPITTECH", "KSB", "LALPATHLAB", "LAXMIMACH", "LINDEINDIA", "LT", "LTIM", "LTTS",
+    "M&M", "MANAPPURAM", "MANKIND", "MARICO", "MARUTI", "MAZDOCK", "MOTILALOFS",
+    "MPHASIS", "NAM-INDIA", "NATCOPHARM", "NCC", "NESTLEIND", "NEWGEN", "ONGC",
+    "PERSISTENT", "PFC", "PIDILITIND", "PIIND", "POLYCAB", "POLYMED", "POWERGRID",
+    "PRAJIND", "RADICO", "RATNAMANI", "RAYMOND", "REDINGTON", "RELIANCE", "RKFORGE",
+    "RVNL", "SANOFI", "SBICARD", "SBIN", "SCHAEFFLER", "SHREECEM", "SHRIRAMFIN",
+    "SIEMENS", "SKFINDIA", "SOLARINDS", "SONACOMS", "SRF", "SUNDARMFIN", "SUNDRMFAST",
+    "SUNPHARMA", "SUPREMEIND", "TATACONSUM", "TATAELXSI", "TATAMOTORS", "TATASTEEL",
+    "TCS", "TECHM", "TECHNOE", "TIINDIA", "TITAN", "TORNTPHARM", "TORNTPOWER",
+    "TRENT", "TRIDENT", "TRITURBINE", "TTKPRESTIG", "TVSHLTD", "TVSMOTOR", "UBL",
+    "ULTRACEMCO", "UNOMINDA", "VBL", "ZENSARTECH", "ZFCVINDIA",
 ]
 
+# TV Cyclicals watchlist (Financials / Discretionary / Industrials / IT / Energy)
+_TV_CYCLICALS = [
+    # Financials
+    "ABCAPITAL", "ANANDRATHI", "ANGELONE", "AUBANK", "BAJAJFINSV", "BAJFINANCE",
+    "BSE", "CAMS", "CANFINHOME", "CDSL", "CHOLAFIN", "CHOLAHLDNG", "CRISIL", "CUB",
+    "HDFCAMC", "HDFCBANK", "HOMEFIRST", "ICICIBANK", "ICICIGI", "KARURVYSYA",
+    "KOTAKBANK", "LICHSGFIN", "MINDSPACE", "MOTILALOFS", "MUTHOOTFIN", "NAM-INDIA",
+    "SBILIFE", "SBIN", "SHRIRAMFIN", "UTIAMC",
+    # Consumer Discretionary
+    "BLUESTARCO", "DIXON", "EICHERMOT", "ESCORTS", "HAVELLS", "HEROMOTOCO",
+    "INDHOTEL", "IRCTC", "M&M", "MARUTI", "PAGEIND", "TATAMOTORS", "TITAN",
+    "TVSHLTD", "TVSMOTOR", "UBL", "UNOMINDA", "VBL", "VGUARD",
+    # Industrials
+    "ABB", "ACE", "ADANIPORTS", "APARINDS", "APLAPOLLO", "ASHOKLEY", "BEL",
+    "CARBORUNIV", "CEMPRO", "COCHINSHIP", "CUMMINSIND", "ELECON", "ELGIEQUIP",
+    "ENDURANCE", "GABRIEL", "GRSE", "HAL", "HBLENGINE", "HUDCO", "INGERRAND",
+    "IRCON", "JBMA", "JINDALSAW", "JKLAKSHMI", "KEI", "LT", "LTTS", "MAZDOCK",
+    "NCC", "POLYCAB", "RATNAMANI", "SCHAEFFLER", "SHRIPISTON", "SOLARINDS",
+    "SUNDRMFAST", "TARIL", "TECHNOE", "THERMAX", "TIINDIA", "TRITURBINE",
+    "USHAMART", "VESUVIUS", "WELCORP",
+    # Materials
+    "ADANIENT", "ASTRAL", "BASF", "COROMANDEL", "GRASIM", "GRAVITA", "HINDALCO",
+    "HINDCOPPER", "HINDZINC", "PCBL", "PIDILITIND", "PIIND", "SUPREMEIND",
+    # Information Technology
+    "BSOFT", "COFORGE", "FSL", "HCLTECH", "INFY", "KPITTECH", "MPHASIS", "NAUKRI",
+    "NEWGEN", "OFSS", "REDINGTON", "TCS", "TIMETECHNO", "ZENSARTECH",
+    # Energy & Utilities
+    "CESC", "COALINDIA", "IEX", "POWERGRID", "TATAPOWER",
+    # Real Estate & Conglomerate
+    "ANANTRAJ", "BRIGADE", "RELIANCE",
+]
+
+# TV Defensives watchlist (Pharma / Healthcare / FMCG / Specialty)
+_TV_DEFENSIVES = [
+    # Pharmaceuticals
+    "ABBOTINDIA", "AJANTPHARM", "ALKEM", "ASTRAZEN", "CAPLIPOINT", "CIPLA",
+    "CONCORDBIO", "DRREDDY", "ERIS", "IPCALAB", "JBCHEPHARM", "NEULANDLAB",
+    "TORNTPHARM", "ZYDUSLIFE",
+    # Healthcare Services
+    "APOLLOHOSP", "LALPATHLAB", "NH", "POLYMED",
+    # FMCG & Consumer Staples
+    "BRITANNIA", "CASTROLIND", "COLPAL", "DABUR", "GODFRYPHLP", "GODREJIND",
+    "ITC", "LTFOODS", "TATACONSUM",
+    # Specialty & Paints
+    "AKZOINDIA",
+    # Defense & Specialty
+    "HSCL", "ZENTEC",
+]
+
+# ── Symbol corrections: variant → canonical yfinance-safe form ──────────────
+# Symbols with & must be percent-encoded for yfinance URL construction
 _CORRECTIONS: Dict[str, str] = {
-    "M&M": "M%26M", "M_M": "M&M", "BAJAJ_AUTO": "BAJAJ-AUTO",
-    "ARE_M": "ARE&M", "NAM-INDIA": "NAM-INDIA", "NAM_INDIA": "NAM-INDIA",
+    # & must be encoded as %26 for yfinance HTTP calls
+    "M&M":      "M%26M",
+    "M_M":      "M%26M",       # underscore alias
+    "ARE&M":    "ARE%26M",
+    "ARE_M":    "ARE%26M",     # underscore alias
+    # Hyphen forms — yfinance accepts hyphens natively, no encoding needed
+    "BAJAJ-AUTO": "BAJAJ-AUTO",
+    "BAJAJ_AUTO": "BAJAJ-AUTO",
+    "NAM-INDIA":  "NAM-INDIA",
+    "NAM_INDIA":  "NAM-INDIA",
 }
 
-ALL_SYMBOLS = sorted(set(_MPTDS_26 + _MPTDS_25 + _MDSPORT_26 + _MPTDS_24))
+# ── Master universe: union of all watchlists, sorted ────────────────────────
+ALL_SYMBOLS = sorted(set(
+    _MPTDS_26 + _MDSPORT_26 + _MPTDS_24 + _TV_CYCLICALS + _TV_DEFENSIVES
+))
 INITIAL_CAPITAL = 1_000_000
 POSITION_SIZE = 50_000
 MAX_POSITIONS = INITIAL_CAPITAL // POSITION_SIZE
@@ -1231,7 +1336,8 @@ def main():
         <div style="font-size:14px;color:rgba(255,255,255,0.72)">CAPE · RSI Z · MACD Z · Dual Timeframe Confluence</div>
         <div style="margin-top:14px;display:flex;gap:8px">
             <span style="background:rgba(255,255,255,0.18);color:white;border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700">v1.8</span>
-            <span style="background:rgba(255,255,255,0.18);color:white;border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700">Improved</span>
+            <span style="background:rgba(255,255,255,0.18);color:white;border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700">290 NSE Stocks</span>
+            <span style="background:rgba(255,255,255,0.18);color:white;border-radius:20px;padding:4px 14px;font-size:11px;font-weight:700">7 Watchlists Merged</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
